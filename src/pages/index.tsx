@@ -3,36 +3,42 @@ import Head from "next/head";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount, useSigner, useSignTypedData } from "wagmi";
 import { useEffect, useState } from "react";
+import { ethers } from "ethers";
 
-interface IMessage {
-  wallet: string;
-  message: string;
+interface ITransaction {
+  caller: string;
+  tokenId: number;
+  price: number;
+  deadline: number;
 }
 
 const Home: NextPage = () => {
   const domain = {
-    name: "Ether Mail",
+    name: "Fishing",
     version: "1",
-    chainId: 1,
-    verifyingContract: "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC",
+    chainId: 3,
+    verifyingContract: "0x1d68b18A98D433f25FC6F4F86cf33B554B02bef5",
   };
   const types = {
-    Person: [
-      { name: "wallet", type: "address" },
-      { name: "message", type: "string" },
+    transaction: [
+      { name: "caller", type: "address" },
+      { name: "tokenId", type: "uint256" },
+      { name: "price", type: "uint256" },
+      { name: "deadline", type: "uint256" },
     ],
   };
-  const [typedValue, setTypedValue] = useState<IMessage>({
-    message: "",
-    wallet: "",
+  const [typedValue, setTypedValue] = useState<ITransaction>({
+    caller: "",
+    tokenId: 0,
+    price: 0,
+    deadline: 0,
   });
   const { isConnected, address } = useAccount();
   const {
-    data: signer,
-    isError: isSignerError,
-    isLoading: isSignerLoading,
-  } = useSigner();
-  const { data: signResult, signTypedDataAsync } = useSignTypedData({
+    data: signResult,
+    signTypedDataAsync,
+    isSuccess: isSigTypedSuccess,
+  } = useSignTypedData({
     domain,
     types,
     value: typedValue,
@@ -41,20 +47,40 @@ const Home: NextPage = () => {
   useEffect(() => {
     if (isConnected) {
       setTypedValue({
-        wallet: address ?? "",
-        message: "I Hereby declare to sent all my money to this website",
+        caller: address ?? "",
+        tokenId: 157,
+        price: 1002,
+        deadline: 100000000,
       });
     }
   }, [isConnected]);
 
   useEffect(() => {
     const signingIfLoggedIn = async () => {
-      if (typedValue?.wallet === address) {
+      if (typedValue?.caller === address) {
         await signTypedDataAsync();
       }
     };
     signingIfLoggedIn();
   }, [typedValue]);
+
+  useEffect(() => {
+    if (signResult && isSigTypedSuccess) {
+      const recoveredAddress = ethers.utils.verifyTypedData(
+        domain,
+        types,
+        typedValue,
+        signResult
+      );
+      console.log(`recoveredAddress : ${recoveredAddress}`);
+      console.log(`signature : ${signResult}`);
+      console.log(
+        `Split Signature : ${JSON.stringify(
+          ethers.utils.splitSignature(signResult.toString())
+        )}`
+      );
+    }
+  }, [signResult]);
 
   return (
     <>
@@ -64,13 +90,26 @@ const Home: NextPage = () => {
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <div className="w-screen h-screen flex flex-col justify-center items-center p-4 bg-gray-800">
-        <h2 className="text-[2rem] lg:text-[4rem] md:text-[4rem] font-extrabold text-gray-300">
+      <div className="w-screen h-screen flex flex-col justify-center items-center p-4 bg-gray-300">
+        <h2 className="text-[2rem] lg:text-[4rem] md:text-[4rem] font-extrabold text-gray-800">
           Welcome to SubWallet Connect
         </h2>
         <div className="mt-7">
           <ConnectButton label="Select Wallet" />
         </div>
+        <div className="mt-7">
+          <button className="relative inline-flex items-center justify-center p-0.5 mb-2 mr-2 overflow-hidden text-sm font-medium text-gray-900 rounded-lg group bg-gradient-to-br from-cyan-500 to-blue-500 group-hover:from-cyan-500 group-hover:to-blue-500 hover:text-white dark:text-white focus:ring-4 focus:outline-none focus:ring-cyan-200 dark:focus:ring-cyan-800">
+            <span className="relative px-5 py-2.5 transition-all ease-in duration-75 bg-white dark:bg-gray-900 rounded-md group-hover:bg-opacity-0">
+              Cyan to blue
+            </span>
+          </button>
+        </div>
+        {isSigTypedSuccess && (
+          <div>
+            <h3>{signResult}</h3>
+            <h3>{address}</h3>
+          </div>
+        )}
       </div>
     </>
   );
