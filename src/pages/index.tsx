@@ -1,8 +1,7 @@
 import type { NextPage } from "next";
-import Head from "next/head";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { useAccount, useSigner, useSignTypedData } from "wagmi";
+import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
+import { useAccount, useSignTypedData, useDisconnect } from "wagmi";
 
 interface IMessage {
   wallet: string;
@@ -10,8 +9,9 @@ interface IMessage {
 }
 
 const Home: NextPage = () => {
+  const router = useRouter();
   const domain = {
-    name: "Ether Mail",
+    name: "Parkir",
     version: "1",
     chainId: 1,
     verifyingContract: "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC",
@@ -27,36 +27,67 @@ const Home: NextPage = () => {
     wallet: "",
   });
   const { isConnected, address } = useAccount();
-  const { data: signResult, signTypedDataAsync } = useSignTypedData({
+  const { disconnect } = useDisconnect();
+  const {
+    data: signResult,
+    error: signTypedDataError,
+    signTypedDataAsync,
+    isSuccess: isSuccessSignTypedData,
+    isError: isErrorSignTypedData,
+    reset: resetSignTypedData,
+  } = useSignTypedData({
     domain,
     types,
     value: typedValue,
+    onError: () => {
+      resetSignTypedData();
+      disconnect();
+    },
   });
-
   useEffect(() => {
     if (isConnected) {
       setTypedValue({
         wallet: address ?? "",
-        message: "I Hereby declare to sent all my money to this website",
+        message: "Hello, i want to login plis",
       });
+    }
+    if (!isConnected) {
+      resetSignTypedData();
     }
   }, [isConnected]);
 
   useEffect(() => {
     const signingIfLoggedIn = async () => {
       if (typedValue?.wallet === address) {
-        await signTypedDataAsync();
+        try {
+          await signTypedDataAsync();
+        } catch (error) {}
       }
     };
     signingIfLoggedIn();
   }, [typedValue]);
 
+  useEffect(() => {
+    if (signResult) {
+      console.log(signResult);
+    }
+  }, [signResult]);
+
+  const handleRouteExplorer = () => {
+    router.push("/explorer");
+  };
+
   return (
     <>
       <div className="flex flex-col justify-center items-center p-4">
         <h2 className="text-[2rem] lg:text-[4rem] md:text-[4rem] font-extrabold text-gray-600">
-          Welcome to SubWallet Connect
+          Welcome to Parkir
         </h2>
+        {isSuccessSignTypedData && (
+          <button onClick={handleRouteExplorer} type="button">
+            Explore
+          </button>
+        )}
       </div>
     </>
   );
